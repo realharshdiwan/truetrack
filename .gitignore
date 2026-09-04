@@ -1,0 +1,25 @@
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.iml
+*.apk
+*.aab
+
+# Python
+pipeline/venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Data (large files)
+data/IO-VNBD/
+data/demo_output/
+
+# OS
+.DS_Store
+*.swp
+*.swo
+*~
