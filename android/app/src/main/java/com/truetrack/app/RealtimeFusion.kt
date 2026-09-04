@@ -73,15 +73,10 @@ class RealtimeFusion {
         gameRotation: FloatArray? = null,
         magnetometer: FloatArray? = null
     ) {
-        if (isOutageActive || estimator.mode == VehicleStateEstimator.PositioningMode.INERTIAL_ONLY ||
-            estimator.mode == VehicleStateEstimator.PositioningMode.GPS_IMU_FUSED ||
-            estimator.mode == VehicleStateEstimator.PositioningMode.GPS_ONLY
-        ) {
-            lastFusedPosition = estimator.processImu(
-                ax, ay, az, gx, gy, gz, timestampMs,
-                linearAccel, gameRotation, magnetometer
-            )
-        }
+        lastFusedPosition = estimator.processImu(
+            ax, ay, az, gx, gy, gz, timestampMs,
+            linearAccel, gameRotation, magnetometer
+        )
     }
 
     fun getDriftFromGps(): Double = estimator.getDriftFromGps()

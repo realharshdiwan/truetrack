@@ -214,10 +214,12 @@ class VehicleStateEstimator {
         gameRotation: FloatArray? = null,
         magnetometer: FloatArray? = null
     ): State {
-        if (!initialized) return currentState ?: State(
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-            PositioningMode.IDLE, 0.0, timestampMs
-        )
+        // Initialize from IMU if no GPS fix yet — heading from magnetometer, position stays at 0,0
+        if (!initialized) {
+            initializeFromImu(timestampMs, magnetometer)
+            mode = PositioningMode.INERTIAL_ONLY
+            outageStartMs = timestampMs
+        }
 
         val dt = getDt(timestampMs)
         if (dt <= 0 || dt > 0.5) return currentState!!
@@ -497,6 +499,49 @@ class VehicleStateEstimator {
         headingKalmanX = headingRad
         gyroHeading = headingRad
         fusedHeading = headingRad
+        initialized = true
+    }
+
+    private fun initializeFromImu(timestampMs: Long, magnetometer: FloatArray?) {
+        // Initialize heading from magnetometer
+        var headingRad = 0.0
+        if (magnetometer != null && magnetometer.size >= 2) {
+            val mx = magnetometer[0].toDouble()
+            val my = magnetometer[1].toDouble()
+            if (abs(mx) > 0.1 || abs(my) > 0.1) {
+                headingRad = atan2(-my, mx)
+            }
+        }
+
+        state[LAT] = 0.0
+        state[LON] = 0.0
+        state[HDG] = headingRad
+        state[VX] = 0.0
+        state[VY] = 0.0
+        state[H_BIAS] = 0.0
+        state[SCALE] = 1.0
+
+        P[LAT][LAT] = 1e-6
+        P[LON][LON] = 1e-6
+        P[HDG][HDG] = 0.1
+        P[VX][VX] = 1.0
+        P[VY][VY] = 1.0
+        P[H_BIAS][H_BIAS] = 0.001
+        P[SCALE][SCALE] = 0.01
+
+        Q[LAT][LAT] = 0.25
+        Q[LON][LON] = 0.25
+        Q[HDG][HDG] = 0.01
+        Q[VX][VX] = 4.0
+        Q[VY][VY] = 4.0
+        Q[H_BIAS][H_BIAS] = 1e-6
+        Q[SCALE][SCALE] = 1e-6
+
+        lastTimestampMs = timestampMs
+        headingKalmanX = headingRad
+        gyroHeading = headingRad
+        fusedHeading = headingRad
+        magHeading = headingRad
         initialized = true
     }
 

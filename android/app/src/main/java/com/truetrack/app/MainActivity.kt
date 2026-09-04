@@ -3,7 +3,11 @@ package com.truetrack.app
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -57,6 +61,7 @@ class MainActivity : AppCompatActivity() {
     private var isDebugMode = false
     private var isOutageActive = false
     private var hasGpsFix = false
+    private var hasGpsEverWorked = false
 
     private val gpsTrack = mutableListOf<GeoPoint>()
     private val fusedTrack = mutableListOf<GeoPoint>()
@@ -84,6 +89,13 @@ class MainActivity : AppCompatActivity() {
                 updateTrackDisplay()
                 updateVehicleMarker()
                 updateStatusDisplay()
+
+                // Show GPS waiting state if no GPS ever received
+                if (!hasGpsEverWorked) {
+                    gpsStatusText.text = "GPS: Waiting for fix..."
+                    gpsStatusText.setTextColor(Color.GRAY)
+                }
+
                 handler.postDelayed(this, 500)
             }
         }
@@ -426,7 +438,11 @@ class MainActivity : AppCompatActivity() {
             val sats = measurement.satellitesUsed
 
             handler.post {
-                gpsStatusText.text = "GPS: $stateString | $sats sats | ${acc}m"
+                if (sats > 0) {
+                    gpsStatusText.text = "GPS: $stateString | $sats sats | ${String.format("%.0f", acc)}m"
+                } else {
+                    gpsStatusText.text = "GPS: Searching..."
+                }
                 gpsStatusText.setTextColor(color)
             }
         }
@@ -434,6 +450,7 @@ class MainActivity : AppCompatActivity() {
         GnssCallback.onLocationUpdate = { location ->
             if (!hasGpsFix) {
                 hasGpsFix = true
+                hasGpsEverWorked = true
                 map.controller.animateTo(GeoPoint(location.latitude, location.longitude))
             }
 
@@ -574,6 +591,8 @@ class MainActivity : AppCompatActivity() {
         startButton.isEnabled = false
         stopButton.isEnabled = true
         simulateOutageButton.isEnabled = true
+        hasGpsEverWorked = false
+        hasGpsFix = false
 
         fusion.start()
         tripRecorder.startTrip()
@@ -592,6 +611,9 @@ class MainActivity : AppCompatActivity() {
         startButton.isEnabled = true
         stopButton.isEnabled = false
         simulateOutageButton.isEnabled = false
+        simulateOutageButton.text = "Sim Outage"
+        simulateOutageButton.setTextColor(Color.DKGRAY)
+        isOutageActive = false
 
         val stopIntent = Intent(this, SensorLoggerService::class.java).apply {
             action = SensorLoggerService.ACTION_STOP
@@ -612,12 +634,15 @@ class MainActivity : AppCompatActivity() {
         if (isOutageActive) {
             isOutageActive = false
             fusion.endOutage()
-            simulateOutageButton.text = "Outage"
+            simulateOutageButton.text = "Sim Outage"
+            simulateOutageButton.setTextColor(Color.DKGRAY)
         } else {
             fusion.startOutage()
             isOutageActive = true
-            simulateOutageButton.text = "Resume"
+            simulateOutageButton.text = "Resume GPS"
+            simulateOutageButton.setTextColor(Color.RED)
         }
+        updateStatusDisplay()
     }
 
     private fun toggleDebugMode() {
@@ -669,16 +694,57 @@ class MainActivity : AppCompatActivity() {
             if (vehicleMarker == null) {
                 vehicleMarker = Marker(map).apply {
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                    icon = resources.getDrawable(android.R.drawable.ic_menu_mylocation, null)
                 }
                 map.overlays.add(vehicleMarker)
+                if (!hasGpsFix) {
+                    map.controller.setZoom(17.0)
+                }
                 map.controller.animateTo(geoPoint)
+                hasGpsFix = true
             }
 
+            // Rotate the arrow based on heading
+            val headingDeg = pos.heading.toFloat()
+            val arrow = createArrowBitmap(headingDeg)
+            vehicleMarker?.icon = BitmapDrawable(resources, arrow)
             vehicleMarker?.position = geoPoint
             vehicleMarker?.title = "Vehicle"
             vehicleMarker?.snippet = fusion.getPositioningModeString()
+            map.invalidate()
         }
+    }
+
+    private fun createArrowBitmap(headingDeg: Float): Bitmap {
+        val size = 80
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+        // Rotate canvas so arrow points in heading direction
+        canvas.save()
+        canvas.rotate(headingDeg, size / 2f, size / 2f)
+
+        // Draw arrow pointing up (north), rotated by heading
+        paint.color = Color.parseColor("#2196F3")
+        paint.style = Paint.Style.FILL
+        val cx = size / 2f
+        val cy = size / 2f
+        val path = android.graphics.Path()
+        path.moveTo(cx, cy - 30f)          // tip
+        path.lineTo(cx - 12f, cy + 10f)    // bottom left
+        path.lineTo(cx, cy)                 // center notch
+        path.lineTo(cx + 12f, cy + 10f)    // bottom right
+        path.close()
+        canvas.drawPath(path, paint)
+
+        // White outline
+        paint.color = Color.WHITE
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 2f
+        canvas.drawPath(path, paint)
+
+        canvas.restore()
+        return bitmap
     }
 
     private fun updateStatusDisplay() {
@@ -698,7 +764,7 @@ class MainActivity : AppCompatActivity() {
 
         if (isOutageActive) {
             fusionStatusText.setTextColor(Color.RED)
-            fusionStatusText.text = "OUTAGE ACTIVE - Inertial Nav"
+            fusionStatusText.text = "SIMULATED OUTAGE - Inertial Only"
         }
 
         val timeMs = fusion.lastFusedPosition?.timestampMs ?: 0L
