@@ -27,6 +27,10 @@ class RealtimeFusion {
         lastFusedPosition = null
     }
 
+    fun setInitialPosition(lat: Double, lon: Double) {
+        estimator.setInitialPosition(lat, lon)
+    }
+
     fun startOutage() {
         simulatedOutage = true
         isOutageActive = true

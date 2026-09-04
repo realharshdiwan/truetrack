@@ -183,15 +183,27 @@ class GnssCollector(private val locationManager: LocationManager) {
                 Log.w(TAG, "Failed to register GNSS status: ${e.message}")
             }
 
-            // Try to get last known location immediately
+            // Try to get last known location immediately from any available provider
             try {
-                val lastKnown = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                    ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                val providers = listOf(
+                    LocationManager.GPS_PROVIDER,
+                    LocationManager.NETWORK_PROVIDER,
+                    LocationManager.PASSIVE_PROVIDER
+                )
+                var lastKnown: Location? = null
+                for (provider in providers) {
+                    try {
+                        lastKnown = locationManager.getLastKnownLocation(provider)
+                        if (lastKnown != null) {
+                            Log.d(TAG, "Last known from $provider: ${lastKnown.latitude}, ${lastKnown.longitude}, age=${System.currentTimeMillis() - lastKnown.time}ms")
+                            break
+                        }
+                    } catch (_: SecurityException) {}
+                }
                 if (lastKnown != null) {
-                    Log.d(TAG, "Last known location: ${lastKnown.latitude}, ${lastKnown.longitude}, age=${System.currentTimeMillis() - lastKnown.time}ms")
                     emitSample(lastKnown)
                 } else {
-                    Log.d(TAG, "No last known location available")
+                    Log.d(TAG, "No last known location from any provider")
                 }
             } catch (e: SecurityException) {
                 Log.w(TAG, "Cannot get last known location: ${e.message}")

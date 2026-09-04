@@ -62,6 +62,7 @@ class VehicleStateEstimator {
     private var lastTimestampMs = 0L
     private var gpsFixCount = 0
     private var outageStartMs = 0L
+    private var isSimulatedOutage = false
 
     // === Heading fusion (complementary filter + 1D Kalman) ===
     private var gyroHeading = 0.0          // integrated gyro heading
@@ -92,6 +93,10 @@ class VehicleStateEstimator {
     private var gyroBiasZ = 0.0
     private var gyroBiasSampleCount = 0
     private val GYRO_BIAS_MAX_SAMPLES = 300
+
+    // === Last known position for bootstrap ===
+    private var lastKnownLat: Double? = null
+    private var lastKnownLon: Double? = null
 
     // === Track histories ===
     val gpsTrack = mutableListOf<Pair<Double, Double>>()
@@ -154,12 +159,22 @@ class VehicleStateEstimator {
         gpsTrack.add(Pair(smoothedLat, smoothedLon))
         gpsFixCount++
 
-        // 2. First fix: initialize everything
+        // 2. First fix: initialize or snap from IMU-only
         if (!initialized) {
             initializeState(smoothedLat, smoothedLon, speed, bearing, timestampMs)
             mode = PositioningMode.GPS_ONLY
             buildState(timestampMs)
             return currentState!!
+        }
+
+        // If we were in IMU-only mode (started without GPS), snap position
+        if (state[LAT] == 0.0 && state[LON] == 0.0) {
+            state[LAT] = smoothedLat
+            state[LON] = smoothedLon
+            gpsTrack.clear()
+            inertialTrack.clear()
+            fusedTrack.clear()
+            gpsTrack.add(Pair(smoothedLat, smoothedLon))
         }
 
         val dt = getDt(timestampMs)
@@ -188,10 +203,10 @@ class VehicleStateEstimator {
 
         lastTimestampMs = timestampMs
 
-        // 8. Mode selection based on accuracy
+        // 8. Mode selection based on accuracy and state
         mode = when {
+            isSimulatedOutage -> PositioningMode.INERTIAL_ONLY
             accuracyM > 100 -> PositioningMode.INERTIAL_ONLY
-            accuracyM > 50 -> PositioningMode.GPS_IMU_FUSED
             gpsFixCount <= 3 -> PositioningMode.GPS_ONLY
             else -> PositioningMode.GPS_IMU_FUSED
         }
@@ -286,8 +301,9 @@ class VehicleStateEstimator {
         fusedTrack.add(Pair(state[LAT], state[LON]))
         inertialTrack.add(Pair(state[LAT], state[LON]))
 
-        if (mode == PositioningMode.IDLE) {
-            mode = if (initialized) PositioningMode.INERTIAL_ONLY else PositioningMode.IDLE
+        // Mode: INERTIAL_ONLY if no GPS fix yet or simulated outage
+        if (mode != PositioningMode.GPS_ONLY && mode != PositioningMode.GPS_IMU_FUSED) {
+            mode = if (isSimulatedOutage || gpsFixCount == 0) PositioningMode.INERTIAL_ONLY else PositioningMode.GPS_IMU_FUSED
         }
 
         confidenceM = computeConfidence(0.0)
@@ -297,12 +313,25 @@ class VehicleStateEstimator {
 
     fun startOutage() {
         outageStartMs = System.currentTimeMillis()
+        isSimulatedOutage = true
         mode = PositioningMode.INERTIAL_ONLY
     }
 
     fun endOutage() {
         outageStartMs = 0L
-        if (initialized) mode = PositioningMode.GPS_IMU_FUSED
+        isSimulatedOutage = false
+        if (initialized) {
+            mode = if (gpsFixCount > 0) PositioningMode.GPS_IMU_FUSED else PositioningMode.INERTIAL_ONLY
+        }
+    }
+
+    fun setInitialPosition(lat: Double, lon: Double) {
+        lastKnownLat = lat
+        lastKnownLon = lon
+        if (!initialized) {
+            state[LAT] = lat
+            state[LON] = lon
+        }
     }
 
     // ========================================
@@ -513,8 +542,9 @@ class VehicleStateEstimator {
             }
         }
 
-        state[LAT] = 0.0
-        state[LON] = 0.0
+        // Use last known position if available, otherwise (0,0)
+        state[LAT] = lastKnownLat ?: 0.0
+        state[LON] = lastKnownLon ?: 0.0
         state[HDG] = headingRad
         state[VX] = 0.0
         state[VY] = 0.0
@@ -667,8 +697,11 @@ class VehicleStateEstimator {
 
     fun getDriftFromGps(): Double {
         if (fusedTrack.isEmpty() || gpsTrack.isEmpty()) return 0.0
+        // Skip if position is near (0,0) — IMU init artifact
         val lastGps = gpsTrack.last()
         val lastFused = fusedTrack.last()
+        if (abs(lastFused.first) < 0.001 && abs(lastFused.second) < 0.001) return 0.0
+        if (abs(lastGps.first) < 0.001 && abs(lastGps.second) < 0.001) return 0.0
         return haversine(lastGps.first, lastGps.second, lastFused.first, lastFused.second)
     }
 

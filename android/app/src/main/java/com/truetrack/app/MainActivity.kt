@@ -452,6 +452,11 @@ class MainActivity : AppCompatActivity() {
                 hasGpsFix = true
                 hasGpsEverWorked = true
                 map.controller.animateTo(GeoPoint(location.latitude, location.longitude))
+
+                // Bootstrap fusion engine with first known position
+                if (isRecording) {
+                    fusion.setInitialPosition(location.latitude, location.longitude)
+                }
             }
 
             val geoPoint = GeoPoint(location.latitude, location.longitude)
