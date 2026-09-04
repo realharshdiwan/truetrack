@@ -1,4 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#121212</color>
+    <color name="primary">#2196F3</color>
+    <color name="primary_dark">#1976D2</color>
+    <color name="accent">#4285F4</color>
+    <color name="background">#F8F9FA</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="on_surface">#1A1A1A</color>
+    <color name="on_surface_secondary">#5F6368</color>
+    <color name="on_surface_tertiary">#9AA0A6</color>
+    <color name="divider">#E8EAED</color>
+    <color name="gps_good">#34A853</color>
+    <color name="gps_degraded">#FBBC04</color>
+    <color name="gps_unavailable">#EA4335</color>
+    <color name="route_blue">#4285F4</color>
+    <color name="fused_green">#34A853</color>
+    <color name="inertial_red">#EA4335</color>
+    <color name="card_shadow">#1A000000</color>
+    <color name="search_background">#FFFFFF</color>
+    <color name="bottom_nav_background">#FFFFFF</color>
+    <color name="positioning_pill_bg">#F1F3F4</color>
+    <color name="nav_card_background">#FFFFFF</color>
+    <color name="ic_launcher_background">#2196F3</color>
 </resources>

@@ -38,6 +38,11 @@
             android:exported="false"
             android:theme="@style/Theme.TrueTrack" />
 
+        <activity
+            android:name=".DiagnosticsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TrueTrack" />
+
         <service
             android:name=".SensorLoggerService"
             android:exported="false"

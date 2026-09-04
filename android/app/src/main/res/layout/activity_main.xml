@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <!-- Map fills the entire screen -->
+    <org.osmdroid.views.MapView
+        android:id="@+id/map"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Floating search bar -->
+    <LinearLayout
+        android:id="@+id/searchContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="48dp"
+        android:orientation="vertical"
+        android:elevation="8dp">
+
+        <AutoCompleteTextView
+            android:id="@+id/searchInput"
+            style="@style/SearchBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/search_hint"
+            android:inputType="text"
+            android:singleLine="true"
+            android:drawableStart="@android:drawable/ic_menu_search"
+            android:drawablePadding="12dp"
+            android:completionThreshold="2"
+            tools:ignore="Autofill" />
+
+        <!-- Category chips (hidden by default, can be shown) -->
+        <HorizontalScrollView
+            android:id="@+id/categoryChips"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+    </LinearLayout>
+
+    <!-- Positioning status pill -->
+    <LinearLayout
+        android:id="@+id/positioningPill"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="112dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:elevation="6dp"
+        android:visibility="gone">
+
+        <View
+            android:id="@+id/positioningDot"
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/pill_bg" />
+
+        <TextView
+            android:id="@+id/positioningText"
+            style="@style/PositioningPill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/positioning_idle" />
+    </LinearLayout>
+
+    <!-- GPS outage warning card -->
+    <LinearLayout
+        android:id="@+id/outageWarning"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="112dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="12dp"
+        android:background="@drawable/floating_card_bg"
+        android:elevation="8dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="⚠ GPS unavailable — inertial navigation active"
+            android:textSize="13sp"
+            android:textColor="@color/gps_unavailable"
+            android:fontFamily="sans-serif-medium" />
+    </LinearLayout>
+
+    <!-- Bottom navigation info card -->
+    <LinearLayout
+        android:id="@+id/navInfoCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginBottom="64dp"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/nav_card_bg"
+            android:elevation="8dp"
+            android:padding="16dp">
+
+            <!-- ETA and distance row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/navDistance"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="28sp"
+                    android:textColor="@color/on_surface"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="—"
+                    tools:text="12.8 km" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="end">
+
+                    <TextView
+                        android:id="@+id/navEta"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="16sp"
+                        android:textColor="@color/on_surface"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="—"
+                        tools:text="29 min" />
+
+                    <TextView
+                        android:id="@+id/navArrival"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="12sp"
+                        android:textColor="@color/on_surface_secondary"
+                        tools:text="Arrive at 10:42 AM" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Maneuver info -->
+            <LinearLayout
+                android:id="@+id/maneuverRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="8dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/maneuverIcon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="24sp"
+                    android:textColor="@color/primary"
+                    tools:text="↱" />
+
+                <TextView
+                    android:id="@+id/maneuverText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:textSize="14sp"
+                    android:textColor="@color/on_surface_secondary"
+                    tools:text="Turn right on Kanakapura Road" />
+            </LinearLayout>
+
+            <!-- Positioning status bar -->
+            <LinearLayout
+                android:id="@+id/navStatusBar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="12dp"
+                android:paddingTop="8dp"
+                android:background="@color/positioning_pill_bg"
+                android:padding="8dp">
+
+                <View
+                    android:id="@+id/navStatusDot"
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/pill_bg" />
+
+                <TextView
+                    android:id="@+id/navStatusText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="12sp"
+                    android:textColor="@color/on_surface_secondary"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="@string/positioning_idle" />
+
+                <TextView
+                    android:id="@+id/navConfidence"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textColor="@color/on_surface_tertiary"
+                    android:fontFamily="sans-serif" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Bottom navigation bar -->
+    <LinearLayout
+        android:id="@+id/bottomNav"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:background="@drawable/bottom_nav_bg"
+        android:elevation="12dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="8dp">
+
+        <!-- Controls row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp">
+
+            <Button
+                android:id="@+id/startButton"
+                style="@style/BottomNavButton"
+                android:text="Start"
+                android:textColor="@color/primary"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/stopButton"
+                style="@style/BottomNavButton"
+                android:text="Stop"
+                android:textColor="@color/gps_unavailable"
+                android:enabled="false" />
+
+            <Button
+                android:id="@+id/outageButton"
+                style="@style/BottomNavButton"
+                android:text="@string/sim_outage"
+                android:enabled="false" />
+
+            <Button
+                android:id="@+id/diagnosticsButton"
+                style="@style/BottomNavButton"
+                android:text="@string/diagnostics"
+                android:textColor="@color/on_surface_secondary" />
+        </LinearLayout>
+    </LinearLayout>
+
+</FrameLayout>

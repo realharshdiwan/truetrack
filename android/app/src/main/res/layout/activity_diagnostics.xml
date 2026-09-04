@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Diagnostics"
+                android:textSize="24sp"
+                android:textColor="@color/on_surface"
+                android:fontFamily="sans-serif-medium" />
+
+            <Button
+                android:id="@+id/exportButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Export"
+                android:textSize="14sp"
+                android:textColor="@color/primary"
+                android:background="?android:attr/selectableItemBackgroundBorderless" />
+        </LinearLayout>
+
+        <!-- GNSS Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/floating_card_bg"
+            android:padding="16dp"
+            android:layout_marginBottom="12dp"
+            android:elevation="2dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="GNSS"
+                android:textSize="14sp"
+                android:textColor="@color/primary"
+                android:fontFamily="sans-serif-medium"
+                android:layout_marginBottom="8dp" />
+
+            <TextView android:id="@+id/diagGnssFix" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Fix: —" />
+            <TextView android:id="@+id/diagGnssAccuracy" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Accuracy: —" />
+            <TextView android:id="@+id/diagGnssSats" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Satellites: —" />
+            <TextView android:id="@+id/diagGnssHealth" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Health: —" />
+        </LinearLayout>
+
+        <!-- IMU Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/floating_card_bg"
+            android:padding="16dp"
+            android:layout_marginBottom="12dp"
+            android:elevation="2dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="IMU"
+                android:textSize="14sp"
+                android:textColor="@color/primary"
+                android:fontFamily="sans-serif-medium"
+                android:layout_marginBottom="8dp" />
+
+            <TextView android:id="@+id/diagAccel" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Accelerometer: —" />
+            <TextView android:id="@+id/diagGyro" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Gyroscope: —" />
+            <TextView android:id="@+id/diagMag" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Magnetometer: —" />
+            <TextView android:id="@+id/diagLinAccel" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Linear Accel: —" />
+        </LinearLayout>
+
+        <!-- Fusion Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/floating_card_bg"
+            android:padding="16dp"
+            android:layout_marginBottom="12dp"
+            android:elevation="2dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Fusion Engine"
+                android:textSize="14sp"
+                android:textColor="@color/primary"
+                android:fontFamily="sans-serif-medium"
+                android:layout_marginBottom="8dp" />
+
+            <TextView android:id="@+id/diagFusionMode" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Mode: —" />
+            <TextView android:id="@+id/diagHeading" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Heading: —" />
+            <TextView android:id="@+id/diagSpeed" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Speed: —" />
+            <TextView android:id="@+id/diagPosition" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Position: —" />
+            <TextView android:id="@+id/diagDrift" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Drift: —" />
+            <TextView android:id="@+id/diagConfidence" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Confidence: —" />
+            <TextView android:id="@+id/diagBias" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Heading Bias: —" />
+            <TextView android:id="@+id/diagScale" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Scale Factor: —" />
+        </LinearLayout>
+
+        <!-- Recording Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/floating_card_bg"
+            android:padding="16dp"
+            android:layout_marginBottom="12dp"
+            android:elevation="2dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Recording"
+                android:textSize="14sp"
+                android:textColor="@color/primary"
+                android:fontFamily="sans-serif-medium"
+                android:layout_marginBottom="8dp" />
+
+            <TextView android:id="@+id/diagImuRate" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="IMU rate: —" />
+            <TextView android:id="@+id/diagGnssRate" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="GNSS rate: —" />
+            <TextView android:id="@+id/diagRecording" style="@style/DiagRow"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Recording: —" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

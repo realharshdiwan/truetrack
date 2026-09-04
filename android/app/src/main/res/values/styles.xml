@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="FloatingCard">
+        <item name="android:background">@drawable/floating_card_bg</item>
+        <item name="android:elevation">6dp</item>
+        <item name="android:padding">12dp</item>
+    </style>
+
+    <style name="SearchBar">
+        <item name="android:background">@drawable/search_bar_bg</item>
+        <item name="android:elevation">8dp</item>
+        <item name="android:paddingLeft">16dp</item>
+        <item name="android:paddingRight">16dp</item>
+        <item name="android:paddingTop">14dp</item>
+        <item name="android:paddingBottom">14dp</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/on_surface</item>
+        <item name="android:textColorHint">@color/on_surface_tertiary</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <style name="PositioningPill">
+        <item name="android:background">@drawable/pill_bg</item>
+        <item name="android:paddingLeft">12dp</item>
+        <item name="android:paddingRight">12dp</item>
+        <item name="android:paddingTop">6dp</item>
+        <item name="android:paddingBottom">6dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/on_surface_secondary</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="BottomNavButton">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:background">?android:attr/selectableItemBackgroundBorderless</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
+        <item name="android:textSize">10sp</item>
+        <item name="android:textColor">@color/on_surface_secondary</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <style name="NavInfoCard">
+        <item name="android:background">@drawable/nav_card_bg</item>
+        <item name="android:elevation">8dp</item>
+        <item name="android:padding">16dp</item>
+    </style>
+
+    <style name="DiagRow">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/on_surface_secondary</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:paddingTop">4dp</item>
+        <item name="android:paddingBottom">4dp</item>
+    </style>
+</resources>

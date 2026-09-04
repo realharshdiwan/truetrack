@@ -8,13 +8,13 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.Gravity
-import android.view.MotionEvent
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.Button
@@ -37,36 +37,56 @@ import org.osmdroid.views.overlay.MapEventsOverlay
 
 class MainActivity : AppCompatActivity() {
 
+    // Map
     private lateinit var map: MapView
-    private lateinit var gpsStatusText: TextView
-    private lateinit var sensorStatusText: TextView
-    private lateinit var fusionStatusText: TextView
-    private lateinit var navigationText: TextView
+
+    // Search
+    private lateinit var searchInput: AutoCompleteTextView
+
+    // Positioning status
+    private lateinit var positioningPill: LinearLayout
+    private lateinit var positioningDot: View
+    private lateinit var positioningText: TextView
+
+    // GPS outage warning
+    private lateinit var outageWarning: LinearLayout
+
+    // Navigation info card
+    private lateinit var navInfoCard: LinearLayout
+    private lateinit var navDistance: TextView
+    private lateinit var navEta: TextView
+    private lateinit var navArrival: TextView
+    private lateinit var maneuverRow: LinearLayout
+    private lateinit var maneuverIcon: TextView
+    private lateinit var maneuverText: TextView
+    private lateinit var navStatusBar: LinearLayout
+    private lateinit var navStatusDot: View
+    private lateinit var navStatusText: TextView
+    private lateinit var navConfidence: TextView
+
+    // Bottom controls
     private lateinit var startButton: Button
     private lateinit var stopButton: Button
-    private lateinit var simulateOutageButton: Button
-    private lateinit var debugToggle: Button
-    private lateinit var debugPanel: LinearLayout
-    private lateinit var searchInput: AutoCompleteTextView
-    private lateinit var waypointText: TextView
-    private lateinit var historyButton: Button
-    private lateinit var clearRouteButton: Button
-    private lateinit var recenterButton: Button
+    private lateinit var outageButton: Button
+    private lateinit var diagnosticsButton: Button
 
+    // Engine
     private val fusion = RealtimeFusion()
     private val navManager = NavigationManager()
     private lateinit var tripRecorder: TripRecorder
 
+    // State
     private var isRecording = false
-    private var isDebugMode = false
     private var isOutageActive = false
     private var hasGpsFix = false
     private var hasGpsEverWorked = false
 
+    // Track points
     private val gpsTrack = mutableListOf<GeoPoint>()
     private val fusedTrack = mutableListOf<GeoPoint>()
     private val inertialTrack = mutableListOf<GeoPoint>()
 
+    // Map overlays
     private var vehicleMarker: Marker? = null
     private var sourceMarker: Marker? = null
     private var destMarker: Marker? = null
@@ -75,11 +95,13 @@ class MainActivity : AppCompatActivity() {
     private var inertialPolyline: Polyline? = null
     private var routePolyline: Polyline? = null
 
+    // Search
     private var lastSearchQuery = ""
     private var currentSource: GeoPoint? = null
     private var currentDestination: GeoPoint? = null
     private var searchResults = listOf<NavigationManager.RoutePoint>()
 
+    // Handler
     private val handler = Handler(Looper.getMainLooper())
     private val searchDebounceRunnable = Runnable { performSearch(lastSearchQuery) }
 
@@ -88,14 +110,7 @@ class MainActivity : AppCompatActivity() {
             if (isRecording) {
                 updateTrackDisplay()
                 updateVehicleMarker()
-                updateStatusDisplay()
-
-                // Show GPS waiting state if no GPS ever received
-                if (!hasGpsEverWorked) {
-                    gpsStatusText.text = "GPS: Waiting for fix..."
-                    gpsStatusText.setTextColor(Color.GRAY)
-                }
-
+                updatePositioningStatus()
                 handler.postDelayed(this, 500)
             }
         }
@@ -107,42 +122,79 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         Configuration.getInstance().userAgentValue = packageName
         tripRecorder = TripRecorder(this)
 
-        val rootLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.MATCH_PARENT
-            )
-        }
+        setContentView(R.layout.activity_main)
 
-        map = MapView(this).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
-            setMultiTouchControls(true)
-            controller.setZoom(16.0)
-        }
-        rootLayout.addView(map, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
-        ))
+        // Bind views
+        map = findViewById(R.id.map)
+        searchInput = findViewById(R.id.searchInput)
+        positioningPill = findViewById(R.id.positioningPill)
+        positioningDot = findViewById(R.id.positioningDot)
+        positioningText = findViewById(R.id.positioningText)
+        outageWarning = findViewById(R.id.outageWarning)
+        navInfoCard = findViewById(R.id.navInfoCard)
+        navDistance = findViewById(R.id.navDistance)
+        navEta = findViewById(R.id.navEta)
+        navArrival = findViewById(R.id.navArrival)
+        maneuverRow = findViewById(R.id.maneuverRow)
+        maneuverIcon = findViewById(R.id.maneuverIcon)
+        maneuverText = findViewById(R.id.maneuverText)
+        navStatusBar = findViewById(R.id.navStatusBar)
+        navStatusDot = findViewById(R.id.navStatusDot)
+        navStatusText = findViewById(R.id.navStatusText)
+        navConfidence = findViewById(R.id.navConfidence)
+        startButton = findViewById(R.id.startButton)
+        stopButton = findViewById(R.id.stopButton)
+        outageButton = findViewById(R.id.outageButton)
+        diagnosticsButton = findViewById(R.id.diagnosticsButton)
 
-        val controlPanel = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(12, 8, 12, 8)
-            setBackgroundColor(Color.parseColor("#F0F0F0"))
-        }
+        // Wire up
+        setupMap()
+        setupSearch()
+        setupButtons()
+        setupGpsCallbacks()
+        setupSensorCallbacks()
+        setupImuCallbacks()
+        requestPermissions()
+    }
 
-        searchInput = AutoCompleteTextView(this).apply {
-            hint = "Search destination..."
-            setPadding(16, 12, 16, 12)
-            textSize = 14f
-            threshold = 2
-            setDropDownBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.WHITE))
-        }
-        controlPanel.addView(searchInput)
+    // ========================================
+    // MAP
+    // ========================================
 
+    private fun setupMap() {
+        map.setTileSource(TileSourceFactory.MAPNIK)
+        map.setMultiTouchControls(true)
+        map.controller.setZoom(16.0)
+
+        val compassOverlay = CompassOverlay(this, map)
+        compassOverlay.enableCompass()
+        map.overlays.add(compassOverlay)
+
+        val rotationOverlay = RotationGestureOverlay(map)
+        rotationOverlay.isEnabled = true
+        map.overlays.add(rotationOverlay)
+
+        val mapEventsOverlay = MapEventsOverlay(object : MapEventsReceiver {
+            override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean = false
+            override fun longPressHelper(p: GeoPoint?): Boolean {
+                if (p != null && isRecording) {
+                    setDestination(p, "Dropped pin")
+                    return true
+                }
+                return false
+            }
+        })
+        map.overlays.add(0, mapEventsOverlay)
+    }
+
+    // ========================================
+    // SEARCH
+    // ========================================
+
+    private fun setupSearch() {
         val searchWatcher = object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
@@ -165,210 +217,67 @@ class MainActivity : AppCompatActivity() {
                 searchInput.dismissDropDown()
             }
         }
-
-        waypointText = TextView(this).apply {
-            textSize = 12f
-            text = "Source: Waiting for GPS... | Dest: None"
-            setPadding(16, 6, 16, 6)
-            setTextColor(Color.DKGRAY)
-        }
-        controlPanel.addView(waypointText)
-
-        gpsStatusText = TextView(this).apply {
-            textSize = 12f
-            text = "GPS: Waiting..."
-            setTextColor(Color.GRAY)
-            setPadding(0, 2, 0, 2)
-        }
-        controlPanel.addView(gpsStatusText)
-
-        sensorStatusText = TextView(this).apply {
-            textSize = 12f
-            text = "IMU: Waiting..."
-            setTextColor(Color.GRAY)
-            setPadding(0, 2, 0, 2)
-        }
-        controlPanel.addView(sensorStatusText)
-
-        fusionStatusText = TextView(this).apply {
-            textSize = 12f
-            text = "Fusion: Idle"
-            setTextColor(Color.GRAY)
-            setPadding(0, 2, 0, 2)
-        }
-        controlPanel.addView(fusionStatusText)
-
-        navigationText = TextView(this).apply {
-            textSize = 12f
-            text = "Nav: No route"
-            setTextColor(Color.GRAY)
-            setPadding(0, 2, 0, 2)
-        }
-        controlPanel.addView(navigationText)
-
-        val buttonRow1 = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(0, 4, 0, 4)
-            gravity = Gravity.CENTER
-        }
-
-        startButton = Button(this).apply {
-            text = "Start"
-            setOnClickListener { startRecording() }
-        }
-        buttonRow1.addView(startButton)
-
-        stopButton = Button(this).apply {
-            text = "Stop"
-            setTextColor(Color.RED)
-            setOnClickListener { stopRecording() }
-            isEnabled = false
-        }
-        buttonRow1.addView(stopButton)
-
-        simulateOutageButton = Button(this).apply {
-            text = "Outage"
-            setOnClickListener { toggleOutage() }
-            isEnabled = false
-        }
-        buttonRow1.addView(simulateOutageButton)
-
-        controlPanel.addView(buttonRow1)
-
-        val buttonRow2 = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(0, 4, 0, 4)
-            gravity = Gravity.CENTER
-        }
-
-        clearRouteButton = Button(this).apply {
-            text = "Clear Route"
-            setTextColor(Color.parseColor("#FF5722"))
-            setOnClickListener { clearRoute() }
-            visibility = android.view.View.GONE
-        }
-        buttonRow2.addView(clearRouteButton)
-
-        recenterButton = Button(this).apply {
-            text = "Re-center"
-            setOnClickListener { recenterOnCurrentPosition() }
-        }
-        buttonRow2.addView(recenterButton)
-
-        historyButton = Button(this).apply {
-            text = "History"
-            setOnClickListener { openTripHistory() }
-        }
-        buttonRow2.addView(historyButton)
-
-        debugToggle = Button(this).apply {
-            text = "Debug"
-            setTextColor(Color.MAGENTA)
-            setOnClickListener { toggleDebugMode() }
-        }
-        buttonRow2.addView(debugToggle)
-
-        controlPanel.addView(buttonRow2)
-
-        rootLayout.addView(controlPanel)
-
-        debugPanel = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(12, 4, 12, 4)
-            setBackgroundColor(Color.parseColor("#F5F0FF"))
-            visibility = android.view.View.GONE
-        }
-        rootLayout.addView(debugPanel)
-
-        setContentView(rootLayout)
-
-        requestPermissions()
-        setupMap()
-        setupGpsCallbacks()
-        setupSensorCallbacks()
-        setupImuCallbacks()
     }
 
-    private fun setupMap() {
-        try {
-            val compassOverlay = CompassOverlay(this, map)
-            compassOverlay.enableCompass()
-            map.overlays.add(compassOverlay)
-
-            val rotationOverlay = RotationGestureOverlay(map)
-            rotationOverlay.isEnabled = true
-            map.overlays.add(rotationOverlay)
-
-            val mapEventsOverlay = MapEventsOverlay(object : MapEventsReceiver {
-                override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
-                    return false
-                }
-
-                override fun longPressHelper(p: GeoPoint?): Boolean {
-                    if (p != null && isRecording) {
-                        setDestination(p, "Dropped pin")
-                        return true
-                    }
-                    return false
-                }
-            })
-            map.overlays.add(0, mapEventsOverlay)
-        } catch (e: Exception) {
-            android.util.Log.e("TrueTrack", "Error setting up map overlays", e)
+    private fun performSearch(query: String) {
+        if (query.length < 3) return
+        navManager.searchDestination(query) { results ->
+            searchResults = results
+            handler.post {
+                val names = results.map { it.name }
+                val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, names)
+                searchInput.setAdapter(adapter)
+                if (results.isNotEmpty()) searchInput.showDropDown()
+            }
         }
     }
+
+    // ========================================
+    // DESTINATION & ROUTING
+    // ========================================
 
     private fun setDestination(point: GeoPoint, name: String) {
         currentDestination = point
         navManager.clearRoute()
         removeRoutePolyline()
 
-        if (destMarker != null) {
-            map.overlays.remove(destMarker)
-        }
+        if (destMarker != null) map.overlays.remove(destMarker)
         destMarker = Marker(map).apply {
             position = point
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
             title = name
-            snippet = "Destination"
         }
         map.overlays.add(destMarker)
         map.invalidate()
 
-        updateWaypointText()
-
-        if (currentSource != null) {
-            fetchRoute()
-        }
+        if (currentSource != null) fetchRoute()
     }
 
     private fun fetchRoute() {
         val source = currentSource ?: return
         val dest = currentDestination ?: return
 
-        navigationText.text = "Nav: Fetching route..."
-        navigationText.setTextColor(Color.parseColor("#FF9800"))
+        navInfoCard.visibility = View.VISIBLE
+        navDistance.text = "Loading..."
+        navEta.text = ""
 
         navManager.fetchRoute(source, dest) { route ->
             handler.post {
                 if (route != null) {
                     navManager.setRoute(route)
                     drawRoute(route)
-                    navigationText.text = "Nav: ${formatDistance(route.distanceM)} | ${formatDuration(route.durationS)}"
-                    navigationText.setTextColor(Color.parseColor("#4285F4"))
-                    clearRouteButton.visibility = android.view.View.VISIBLE
+                    navDistance.text = formatDistance(route.distanceM)
+                    navEta.text = formatDuration(route.durationS)
+                    navArrival.text = "Arrive ${getArrivalTime(route.durationS)}"
                 } else {
-                    navigationText.text = "Nav: Route failed"
-                    navigationText.setTextColor(Color.RED)
+                    navDistance.text = "Route failed"
                 }
             }
         }
     }
 
     private fun drawRoute(route: NavigationManager.Route) {
-        if (routePolyline != null) {
-            map.overlays.remove(routePolyline)
-        }
+        removeRoutePolyline()
         routePolyline = Polyline().apply {
             setPoints(route.points)
             outlinePaint.color = Color.parseColor("#4285F4")
@@ -388,214 +297,26 @@ class MainActivity : AppCompatActivity() {
             map.overlays.remove(routePolyline)
             routePolyline = null
         }
-        map.invalidate()
     }
 
-    private fun clearRoute() {
-        navManager.clearRoute()
-        removeRoutePolyline()
-        currentDestination = null
-        if (destMarker != null) {
-            map.overlays.remove(destMarker)
-            destMarker = null
+    // ========================================
+    // BUTTONS
+    // ========================================
+
+    private fun setupButtons() {
+        startButton.setOnClickListener { startRecording() }
+        stopButton.setOnClickListener { stopRecording() }
+        outageButton.setOnClickListener { toggleOutage() }
+        diagnosticsButton.setOnClickListener {
+            startActivity(Intent(this, DiagnosticsActivity::class.java))
         }
-        clearRouteButton.visibility = android.view.View.GONE
-        navigationText.text = "Nav: No route"
-        navigationText.setTextColor(Color.GRAY)
-        updateWaypointText()
-    }
-
-    private fun recenterOnCurrentPosition() {
-        val pos = fusion.lastFusedPosition
-        if (pos != null) {
-            map.controller.animateTo(GeoPoint(pos.lat, pos.lon))
-        } else if (gpsTrack.isNotEmpty()) {
-            map.controller.animateTo(gpsTrack.last())
-        }
-    }
-
-    private fun performSearch(query: String) {
-        if (query.length < 3) return
-
-        navManager.searchDestination(query) { results ->
-            searchResults = results
-            handler.post {
-                val names = results.map { it.name }
-                val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, names)
-                searchInput.setAdapter(adapter)
-                if (results.isNotEmpty()) {
-                    searchInput.showDropDown()
-                }
-            }
-        }
-    }
-
-    private fun setupGpsCallbacks() {
-        GnssCallback.onGnssMeasurement = { measurement: GnssCollector.GnssSample ->
-            val stateString = fusion.getGpsStateString()
-            val color = fusion.getGpsStateColor()
-            val acc = measurement.horizontalAccuracy
-            val sats = measurement.satellitesUsed
-
-            handler.post {
-                if (sats > 0) {
-                    gpsStatusText.text = "GPS: $stateString | $sats sats | ${String.format("%.0f", acc)}m"
-                } else {
-                    gpsStatusText.text = "GPS: Searching..."
-                }
-                gpsStatusText.setTextColor(color)
-            }
-        }
-
-        GnssCallback.onLocationUpdate = { location ->
-            if (!hasGpsFix) {
-                hasGpsFix = true
-                hasGpsEverWorked = true
-                map.controller.animateTo(GeoPoint(location.latitude, location.longitude))
-
-                // Bootstrap fusion engine with first known position
-                if (isRecording) {
-                    fusion.setInitialPosition(location.latitude, location.longitude)
-                }
-            }
-
-            val geoPoint = GeoPoint(location.latitude, location.longitude)
-            gpsTrack.add(geoPoint)
-
-            if (currentSource == null) {
-                currentSource = geoPoint
-                if (sourceMarker != null) {
-                    map.overlays.remove(sourceMarker)
-                }
-                sourceMarker = Marker(map).apply {
-                    position = geoPoint
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                    title = "Source"
-                    snippet = "Current location"
-                }
-                map.overlays.add(sourceMarker)
-                map.invalidate()
-                updateWaypointText()
-            }
-
-            if (isRecording) {
-                fusion.processGps(
-                    location.latitude, location.longitude,
-                    location.speed.toDouble(), location.bearing.toDouble(),
-                    location.accuracy, 0, location.time
-                )
-            }
-        }
-    }
-
-    private fun setupSensorCallbacks() {
-        SensorCallback.onSensorUpdate = { accelerometer, gyroscope, _ ->
-            val accelRms = Math.sqrt(
-                (accelerometer[0] * accelerometer[0] +
-                 accelerometer[1] * accelerometer[1] +
-                 accelerometer[2] * accelerometer[2]).toDouble()
-            )
-            val gyroRms = Math.sqrt(
-                (gyroscope[0] * gyroscope[0] +
-                 gyroscope[1] * gyroscope[1] +
-                 gyroscope[2] * gyroscope[2]).toDouble()
-            )
-
-            handler.post {
-                sensorStatusText.text = "IMU: a=${String.format("%.2f", accelRms)} g | g=${String.format("%.2f", gyroRms)} dps"
-            }
-        }
-    }
-
-    private fun setupImuCallbacks() {
-        SensorCallback.onImuData = { ax, ay, az, gx, gy, gz, ts, linearAccel, gameRotation, magnetometer ->
-            if (isRecording) {
-                fusion.processImu(ax, ay, az, gx, gy, gz, ts, linearAccel, gameRotation, magnetometer)
-
-                if (isDebugMode) {
-                    handler.post {
-                        updateDebugPanel(ax, ay, az, gx, gy, gz, ts, linearAccel, gameRotation, magnetometer)
-                    }
-                }
-            }
-        }
-    }
-
-    private fun updateDebugPanel(
-        ax: Double, ay: Double, az: Double,
-        gx: Double, gy: Double, gz: Double,
-        ts: Long, linearAccel: FloatArray?, gameRotation: FloatArray?, magnetometer: FloatArray?
-    ) {
-        debugPanel.removeAllViews()
-
-        val title = TextView(this).apply {
-            textSize = 12f
-            text = "=== ENGINE DEBUG ==="
-            setTextColor(Color.MAGENTA)
-        }
-        debugPanel.addView(title)
-
-        if (linearAccel != null && linearAccel.size >= 3) {
-            debugPanel.addView(TextView(this).apply {
-                textSize = 11f
-                text = "LinAccel: ${String.format("%.3f", linearAccel[0])}, ${String.format("%.3f", linearAccel[1])}, ${String.format("%.3f", linearAccel[2])}"
-                setTextColor(Color.parseColor("#2196F3"))
-            })
-        }
-
-        debugPanel.addView(TextView(this).apply {
-            textSize = 11f
-            text = "Gyro Z: ${String.format("%.4f", gz)} rad/s"
-        })
-
-        if (magnetometer != null && magnetometer.size >= 3) {
-            debugPanel.addView(TextView(this).apply {
-                textSize = 11f
-                text = "Mag: ${String.format("%.1f", magnetometer[0])}, ${String.format("%.1f", magnetometer[1])}, ${String.format("%.1f", magnetometer[2])} μT"
-            })
-        }
-
-        debugPanel.addView(TextView(this).apply {
-            textSize = 11f
-            text = "Mode: ${fusion.getPositioningModeString()}"
-        })
-
-        val state = fusion.lastFusedPosition
-        if (state != null) {
-            debugPanel.addView(TextView(this).apply {
-                textSize = 11f
-                text = "Hdg: ${String.format("%.1f", state.heading)}° | Bias: ${String.format("%.4f", state.headingBiasRad)} rad"
-            })
-
-            debugPanel.addView(TextView(this).apply {
-                textSize = 11f
-                text = "Scale: ${String.format("%.3f", state.scaleFactor)} | Speed: ${String.format("%.1f", state.speed * 3.6)} km/h"
-            })
-
-            debugPanel.addView(TextView(this).apply {
-                textSize = 11f
-                text = "Pos: ${String.format("%.6f", state.lat)}, ${String.format("%.6f", state.lon)}"
-            })
-        }
-
-        debugPanel.addView(TextView(this).apply {
-            textSize = 11f
-            val conf = fusion.getConfidenceM()
-            val confStr = if (conf > 9999 || !conf.isFinite()) "--" else String.format("%.1f", conf)
-            text = "Drift: ${String.format("%.1f", fusion.getDriftFromGps())}m | Conf: ${confStr}m"
-        })
-
-        debugPanel.addView(TextView(this).apply {
-            textSize = 11f
-            text = "GPS: ${fusion.getGpsStateString()}"
-        })
     }
 
     private fun startRecording() {
         isRecording = true
         startButton.isEnabled = false
         stopButton.isEnabled = true
-        simulateOutageButton.isEnabled = true
+        outageButton.isEnabled = true
         hasGpsEverWorked = false
         hasGpsFix = false
 
@@ -607,6 +328,8 @@ class MainActivity : AppCompatActivity() {
         }
         startForegroundService(serviceIntent)
 
+        positioningPill.visibility = View.VISIBLE
+        navInfoCard.visibility = View.VISIBLE
         updateVehicleMarker()
         handler.postDelayed(updateRunnable, 500)
     }
@@ -615,9 +338,7 @@ class MainActivity : AppCompatActivity() {
         isRecording = false
         startButton.isEnabled = true
         stopButton.isEnabled = false
-        simulateOutageButton.isEnabled = false
-        simulateOutageButton.text = "Sim Outage"
-        simulateOutageButton.setTextColor(Color.DKGRAY)
+        outageButton.isEnabled = false
         isOutageActive = false
 
         val stopIntent = Intent(this, SensorLoggerService::class.java).apply {
@@ -639,21 +360,132 @@ class MainActivity : AppCompatActivity() {
         if (isOutageActive) {
             isOutageActive = false
             fusion.endOutage()
-            simulateOutageButton.text = "Sim Outage"
-            simulateOutageButton.setTextColor(Color.DKGRAY)
+            outageButton.text = getString(R.string.sim_outage)
+            outageButton.setTextColor(Color.DKGRAY)
+            outageWarning.visibility = View.GONE
         } else {
             fusion.startOutage()
             isOutageActive = true
-            simulateOutageButton.text = "Resume GPS"
-            simulateOutageButton.setTextColor(Color.RED)
+            outageButton.text = getString(R.string.resume_gps)
+            outageButton.setTextColor(Color.RED)
+            outageWarning.visibility = View.VISIBLE
         }
-        updateStatusDisplay()
     }
 
-    private fun toggleDebugMode() {
-        isDebugMode = !isDebugMode
-        debugToggle.text = if (isDebugMode) "Debug ON" else "Debug"
-        debugPanel.visibility = if (isDebugMode) android.view.View.VISIBLE else android.view.View.GONE
+    // ========================================
+    // GPS & SENSOR CALLBACKS
+    // ========================================
+
+    private fun setupGpsCallbacks() {
+        GnssCallback.onGnssMeasurement = { measurement ->
+            val sats = measurement.satellitesUsed
+            val acc = measurement.horizontalAccuracy
+            handler.post {
+                if (!hasGpsEverWorked) {
+                    positioningText.text = "GPS: Searching..."
+                    positioningDot.background = makeDot(Color.GRAY)
+                }
+            }
+        }
+
+        GnssCallback.onLocationUpdate = { location ->
+            if (!hasGpsFix) {
+                hasGpsFix = true
+                hasGpsEverWorked = true
+                map.controller.animateTo(GeoPoint(location.latitude, location.longitude))
+                if (isRecording) {
+                    fusion.setInitialPosition(location.latitude, location.longitude)
+                }
+            }
+
+            val geoPoint = GeoPoint(location.latitude, location.longitude)
+            gpsTrack.add(geoPoint)
+
+            if (currentSource == null) {
+                currentSource = geoPoint
+            }
+
+            if (isRecording) {
+                fusion.processGps(
+                    location.latitude, location.longitude,
+                    location.speed.toDouble(), location.bearing.toDouble(),
+                    location.accuracy, 0, location.time
+                )
+            }
+        }
+    }
+
+    private fun setupSensorCallbacks() {
+        SensorCallback.onSensorUpdate = { _, _, _ -> }
+    }
+
+    private fun setupImuCallbacks() {
+        SensorCallback.onImuData = { ax, ay, az, gx, gy, gz, ts, linearAccel, gameRotation, magnetometer ->
+            if (isRecording) {
+                fusion.processImu(ax, ay, az, gx, gy, gz, ts, linearAccel, gameRotation, magnetometer)
+            }
+        }
+    }
+
+    // ========================================
+    // UI UPDATES
+    // ========================================
+
+    private fun updatePositioningStatus() {
+        val mode = fusion.getPositioningMode()
+        val state = fusion.lastFusedPosition
+        val confidence = fusion.getConfidenceM()
+
+        // Positioning pill
+        when (mode) {
+            VehicleStateEstimator.PositioningMode.GPS_ONLY -> {
+                positioningText.text = "GPS · high confidence"
+                positioningDot.background = makeDot(Color.parseColor("#34A853"))
+                positioningText.setTextColor(Color.parseColor("#34A853"))
+            }
+            VehicleStateEstimator.PositioningMode.GPS_IMU_FUSED -> {
+                positioningText.text = "GPS + IMU · active"
+                positioningDot.background = makeDot(Color.parseColor("#FBBC04"))
+                positioningText.setTextColor(Color.parseColor("#FBBC04"))
+            }
+            VehicleStateEstimator.PositioningMode.INERTIAL_ONLY -> {
+                positioningText.text = "Inertial · active"
+                positioningDot.background = makeDot(Color.parseColor("#EA4335"))
+                positioningText.setTextColor(Color.parseColor("#EA4335"))
+            }
+            VehicleStateEstimator.PositioningMode.IDLE -> {
+                positioningText.text = "Waiting for GPS…"
+                positioningDot.background = makeDot(Color.GRAY)
+                positioningText.setTextColor(Color.GRAY)
+            }
+        }
+
+        // Outage warning
+        if (isOutageActive) {
+            outageWarning.visibility = View.VISIBLE
+        } else {
+            outageWarning.visibility = View.GONE
+        }
+
+        // Navigation info card
+        if (state != null) {
+            val speedKmh = state.speed * 3.6
+            navStatusText.text = when (mode) {
+                VehicleStateEstimator.PositioningMode.GPS_ONLY -> "GPS · high confidence"
+                VehicleStateEstimator.PositioningMode.GPS_IMU_FUSED -> "GPS + IMU · active"
+                VehicleStateEstimator.PositioningMode.INERTIAL_ONLY -> "Inertial · active"
+                VehicleStateEstimator.PositioningMode.IDLE -> "Waiting…"
+            }
+            navStatusDot.background = makeDot(when (mode) {
+                VehicleStateEstimator.PositioningMode.GPS_ONLY -> Color.parseColor("#34A853")
+                VehicleStateEstimator.PositioningMode.GPS_IMU_FUSED -> Color.parseColor("#FBBC04")
+                VehicleStateEstimator.PositioningMode.INERTIAL_ONLY -> Color.parseColor("#EA4335")
+                VehicleStateEstimator.PositioningMode.IDLE -> Color.GRAY
+            })
+
+            val confStr = if (confidence > 9999 || !confidence.isFinite()) "—" else "${String.format("%.0f", confidence)}m"
+            navConfidence.text = confStr
+        }
     }
 
     private fun updateTrackDisplay() {
@@ -662,8 +494,8 @@ class MainActivity : AppCompatActivity() {
         if (gpsTrack.size > 1) {
             gpsPolyline = Polyline().apply {
                 setPoints(gpsTrack)
-                outlinePaint.color = Color.BLUE
-                outlinePaint.strokeWidth = 8f
+                outlinePaint.color = Color.parseColor("#4285F4")
+                outlinePaint.strokeWidth = 6f
             }
             map.overlays.add(gpsPolyline)
         }
@@ -671,7 +503,7 @@ class MainActivity : AppCompatActivity() {
         if (fusedTrack.size > 1) {
             fusedPolyline = Polyline().apply {
                 setPoints(fusedTrack)
-                outlinePaint.color = Color.GREEN
+                outlinePaint.color = Color.parseColor("#34A853")
                 outlinePaint.strokeWidth = 6f
             }
             map.overlays.add(fusedPolyline)
@@ -680,7 +512,7 @@ class MainActivity : AppCompatActivity() {
         if (inertialTrack.size > 1) {
             inertialPolyline = Polyline().apply {
                 setPoints(inertialTrack)
-                outlinePaint.color = Color.RED
+                outlinePaint.color = Color.parseColor("#EA4335")
                 outlinePaint.strokeWidth = 6f
             }
             map.overlays.add(inertialPolyline)
@@ -701,23 +533,22 @@ class MainActivity : AppCompatActivity() {
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                 }
                 map.overlays.add(vehicleMarker)
-                if (!hasGpsFix) {
-                    map.controller.setZoom(17.0)
-                }
+                if (!hasGpsFix) map.controller.setZoom(17.0)
                 map.controller.animateTo(geoPoint)
                 hasGpsFix = true
             }
 
-            // Rotate the arrow based on heading
             val headingDeg = pos.heading.toFloat()
-            val arrow = createArrowBitmap(headingDeg)
-            vehicleMarker?.icon = BitmapDrawable(resources, arrow)
+            vehicleMarker?.icon = BitmapDrawable(resources, createArrowBitmap(headingDeg))
             vehicleMarker?.position = geoPoint
-            vehicleMarker?.title = "Vehicle"
-            vehicleMarker?.snippet = fusion.getPositioningModeString()
+            vehicleMarker?.title = ""
             map.invalidate()
         }
     }
+
+    // ========================================
+    // DRAWING
+    // ========================================
 
     private fun createArrowBitmap(headingDeg: Float): Bitmap {
         val size = 80
@@ -725,20 +556,19 @@ class MainActivity : AppCompatActivity() {
         val canvas = Canvas(bitmap)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-        // Rotate canvas so arrow points in heading direction
         canvas.save()
         canvas.rotate(headingDeg, size / 2f, size / 2f)
 
-        // Draw arrow pointing up (north), rotated by heading
-        paint.color = Color.parseColor("#2196F3")
+        // Blue arrow
+        paint.color = Color.parseColor("#4285F4")
         paint.style = Paint.Style.FILL
         val cx = size / 2f
         val cy = size / 2f
         val path = android.graphics.Path()
-        path.moveTo(cx, cy - 30f)          // tip
-        path.lineTo(cx - 12f, cy + 10f)    // bottom left
-        path.lineTo(cx, cy)                 // center notch
-        path.lineTo(cx + 12f, cy + 10f)    // bottom right
+        path.moveTo(cx, cy - 30f)
+        path.lineTo(cx - 12f, cy + 10f)
+        path.lineTo(cx, cy)
+        path.lineTo(cx + 12f, cy + 10f)
         path.close()
         canvas.drawPath(path, paint)
 
@@ -752,46 +582,37 @@ class MainActivity : AppCompatActivity() {
         return bitmap
     }
 
-    private fun updateStatusDisplay() {
-        val mode = fusion.getPositioningMode()
-        val drift = fusion.getDriftFromGps()
-        val confidence = fusion.getConfidenceM()
-
-        val modeColor = when (mode) {
-            VehicleStateEstimator.PositioningMode.GPS_ONLY -> Color.BLUE
-            VehicleStateEstimator.PositioningMode.GPS_IMU_FUSED -> Color.GREEN
-            VehicleStateEstimator.PositioningMode.INERTIAL_ONLY -> Color.RED
-            VehicleStateEstimator.PositioningMode.IDLE -> Color.GRAY
-        }
-
-        fusionStatusText.text = "Fusion: ${fusion.getPositioningModeString()} | ${String.format("%.1f", drift)}m drift"
-        fusionStatusText.setTextColor(modeColor)
-
-        if (isOutageActive) {
-            fusionStatusText.setTextColor(Color.RED)
-            fusionStatusText.text = "SIMULATED OUTAGE - Inertial Only"
-        }
-
-        val timeMs = fusion.lastFusedPosition?.timestampMs ?: 0L
-        val timeAgo = if (timeMs > 0) (System.currentTimeMillis() - timeMs) / 1000 else 0
-        val confidenceStr = if (confidence > 9999 || !confidence.isFinite()) "--" else String.format("%.1f", confidence)
-        navigationText.text = "Last fix: ${timeAgo}s ago | Confidence: ${confidenceStr}m"
-        navigationText.setTextColor(if (isOutageActive) Color.RED else Color.DKGRAY)
-
-        updateWaypointText()
+    private fun makeDot(color: Int): android.graphics.drawable.Drawable {
+        val drawable = GradientDrawable()
+        drawable.shape = GradientDrawable.OVAL
+        drawable.setColor(color)
+        drawable.setSize(12, 12)
+        return drawable
     }
 
-    private fun updateWaypointText() {
-        val srcName = if (currentSource != null) "GPS location" else "Waiting for GPS..."
-        val destName = currentDestination?.let {
-            navManager.destinationName ?: "Dropped pin"
-        } ?: "None"
-        waypointText.text = "Source: $srcName | Dest: $destName"
+    // ========================================
+    // UTILITIES
+    // ========================================
+
+    private fun formatDistance(meters: Double): String {
+        return if (meters >= 1000) String.format("%.1f km", meters / 1000)
+        else String.format("%.0f m", meters)
     }
 
-    private fun openTripHistory() {
-        val intent = Intent(this, TripHistoryActivity::class.java)
-        startActivity(intent)
+    private fun formatDuration(seconds: Double): String {
+        val mins = (seconds / 60).toInt()
+        val secs = (seconds % 60).toInt()
+        return if (mins >= 60) "${mins / 60}h ${mins % 60}m"
+        else "${mins}m ${secs}s"
+    }
+
+    private fun getArrivalTime(durationS: Double): String {
+        val cal = java.util.Calendar.getInstance()
+        cal.add(java.util.Calendar.SECOND, durationS.toInt())
+        val hour = cal.get(java.util.Calendar.HOUR)
+        val min = cal.get(java.util.Calendar.MINUTE)
+        val ampm = if (cal.get(java.util.Calendar.AM_PM) == 0) "AM" else "PM"
+        return String.format("%d:%02d %s", hour, min, ampm)
     }
 
     private fun requestPermissions() {
@@ -809,26 +630,6 @@ class MainActivity : AppCompatActivity() {
         }.toTypedArray()
         if (filtered.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, filtered, REQUEST_PERMISSIONS)
-        }
-    }
-
-    private fun formatDistance(meters: Double): String {
-        return if (meters >= 1000) {
-            String.format("%.1f km", meters / 1000)
-        } else {
-            String.format("%.0f m", meters)
-        }
-    }
-
-    private fun formatDuration(seconds: Double): String {
-        val mins = (seconds / 60).toInt()
-        val secs = (seconds % 60).toInt()
-        return if (mins >= 60) {
-            val hrs = mins / 60
-            val remainMins = mins % 60
-            "${hrs}h ${remainMins}m"
-        } else {
-            "${mins}m ${secs}s"
         }
     }
 

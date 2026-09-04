@@ -1,4 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">TrueTrack</string>
+    <string name="search_hint">Where to?</string>
+    <string name="positioning_good">GPS · high confidence</string>
+    <string name="positioning_degraded">GPS + IMU · active</string>
+    <string name="positioning_inertial">Inertial · active</string>
+    <string name="positioning_idle">Waiting for GPS…</string>
+    <string name="gps_outage_warning">GPS unavailable — inertial navigation active</string>
+    <string name="start_navigation">Start Navigation</string>
+    <string name="stop_navigation">Stop</string>
+    <string name="sim_outage">Sim Outage</string>
+    <string name="resume_gps">Resume GPS</string>
+    <string name="diagnostics">Diagnostics</string>
+    <string name="trips">Trips</string>
+    <string name="layers">Layers</string>
 </resources>
