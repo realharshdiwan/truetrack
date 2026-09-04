@@ -227,7 +227,8 @@ class VehicleStateEstimator {
         timestampMs: Long,
         linearAccel: FloatArray? = null,
         gameRotation: FloatArray? = null,
-        magnetometer: FloatArray? = null
+        magnetometer: FloatArray? = null,
+        rotationVector: FloatArray? = null
     ): State {
         // Initialize from IMU if no GPS fix yet — heading from magnetometer, position stays at 0,0
         if (!initialized) {
@@ -251,8 +252,12 @@ class VehicleStateEstimator {
         // 4. Stationary detection
         updateStationaryDetection(aNorth, aEast, correctedGyroZ)
 
-        // 5. Heading fusion: complementary filter + 1D Kalman
-        if (magnetometer != null) {
+        // 5. Heading fusion: prefer rotation vector (tilt-compensated), fallback to mag
+        if (gameRotation != null) {
+            updateHeadingFromRotationVector(gameRotation)
+        } else if (rotationVector != null) {
+            updateHeadingFromRotationVector(rotationVector)
+        } else if (magnetometer != null) {
             updateMagHeading(magnetometer)
         }
         updateGyroHeading(correctedGyroZ, dt)
@@ -406,9 +411,25 @@ class VehicleStateEstimator {
             val mx = magnetometer[0].toDouble()
             val my = magnetometer[1].toDouble()
             if (abs(mx) > 0.1 || abs(my) > 0.1) {
-                magHeading = atan2(-my, mx)  // Magnetic north to true north approximation
+                magHeading = atan2(-my, mx)
             }
         }
+    }
+
+    private fun updateHeadingFromRotationVector(rotationVector: FloatArray?) {
+        if (rotationVector == null || rotationVector.size < 4) return
+        // rotation vector: [x, y, z, w] (or [x, y, z, accuracy, w])
+        val x = rotationVector[0].toDouble()
+        val y = rotationVector[1].toDouble()
+        val z = rotationVector[2].toDouble()
+        val w = if (rotationVector.size >= 5) rotationVector[4].toDouble() else rotationVector[3].toDouble()
+
+        // Extract yaw (heading) from quaternion
+        val siny_cosp = 2.0 * (w * z + x * y)
+        val cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
+        val yaw = atan2(siny_cosp, cosy_cosp) // This is tilt-compensated heading
+
+        magHeading = yaw
     }
 
     private fun updateComplementaryHeading() {

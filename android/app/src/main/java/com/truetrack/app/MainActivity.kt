@@ -104,14 +104,14 @@ class MainActivity : AppCompatActivity() {
     // Handler
     private val handler = Handler(Looper.getMainLooper())
     private val searchDebounceRunnable = Runnable { performSearch(lastSearchQuery) }
+    private var lastMarkerUpdateMs = 0L
+    private val MARKER_UPDATE_INTERVAL_MS = 100L  // 10Hz for smooth marker movement
 
     private val updateRunnable = object : Runnable {
         override fun run() {
             if (isRecording) {
                 updateTrackDisplay()
-                updateVehicleMarker()
-                updatePositioningStatus()
-                handler.postDelayed(this, 500)
+                handler.postDelayed(this, 1000)
             }
         }
     }
@@ -420,9 +420,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupImuCallbacks() {
-        SensorCallback.onImuData = { ax, ay, az, gx, gy, gz, ts, linearAccel, gameRotation, magnetometer ->
+        SensorCallback.onImuData = { ax, ay, az, gx, gy, gz, ts, linearAccel, gameRotation, magnetometer, rotationVector ->
             if (isRecording) {
-                fusion.processImu(ax, ay, az, gx, gy, gz, ts, linearAccel, gameRotation, magnetometer)
+                fusion.processImu(ax, ay, az, gx, gy, gz, ts, linearAccel, gameRotation, magnetometer, rotationVector)
+
+                // Update marker directly from IMU for responsiveness (throttled)
+                val now = System.currentTimeMillis()
+                if (now - lastMarkerUpdateMs > MARKER_UPDATE_INTERVAL_MS) {
+                    lastMarkerUpdateMs = now
+                    handler.post {
+                        updateVehicleMarker()
+                        updatePositioningStatus()
+                    }
+                }
             }
         }
     }

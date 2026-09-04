@@ -54,7 +54,8 @@ class SensorLoggerService : Service() {
                     sample.gx.toDouble(), sample.gy.toDouble(), sample.gz.toDouble(),
                     sample.timestamp,
                     sample.linearAccel, sample.gameRotation,
-                    floatArrayOf(sample.mx, sample.my, sample.mz)
+                    floatArrayOf(sample.mx, sample.my, sample.mz),
+                    sample.rotationVector
                 )
             }
         }

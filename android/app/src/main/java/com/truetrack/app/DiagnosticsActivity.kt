@@ -105,7 +105,7 @@ class DiagnosticsActivity : AppCompatActivity() {
             }
         }
 
-        SensorCallback.onImuData = { ax, ay, az, gx, gy, gz, ts, linearAccel, _, _ ->
+        SensorCallback.onImuData = { ax, ay, az, gx, gy, gz, ts, linearAccel, _, _, _ ->
             lastImuTimestamp = ts
             imuSampleCount++
             val la = linearAccel

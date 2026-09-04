@@ -75,11 +75,12 @@ class RealtimeFusion {
         timestampMs: Long,
         linearAccel: FloatArray? = null,
         gameRotation: FloatArray? = null,
-        magnetometer: FloatArray? = null
+        magnetometer: FloatArray? = null,
+        rotationVector: FloatArray? = null
     ) {
         lastFusedPosition = estimator.processImu(
             ax, ay, az, gx, gy, gz, timestampMs,
-            linearAccel, gameRotation, magnetometer
+            linearAccel, gameRotation, magnetometer, rotationVector
         )
     }
 

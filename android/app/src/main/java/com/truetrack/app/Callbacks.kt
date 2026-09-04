@@ -2,7 +2,7 @@ package com.truetrack.app
 
 object SensorCallback {
     var onSensorUpdate: ((accelerometer: FloatArray, gyroscope: FloatArray, magnetometer: FloatArray) -> Unit)? = null
-    var onImuData: ((ax: Double, ay: Double, az: Double, gx: Double, gy: Double, gz: Double, timestampMs: Long, linearAccel: FloatArray?, gameRotation: FloatArray?, magnetometer: FloatArray?) -> Unit)? = null
+    var onImuData: ((ax: Double, ay: Double, az: Double, gx: Double, gy: Double, gz: Double, timestampMs: Long, linearAccel: FloatArray?, gameRotation: FloatArray?, magnetometer: FloatArray?, rotationVector: FloatArray?) -> Unit)? = null
 }
 
 object GnssCallback {
